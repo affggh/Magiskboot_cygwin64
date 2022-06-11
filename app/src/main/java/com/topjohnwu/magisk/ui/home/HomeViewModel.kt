@@ -3,7 +3,6 @@ package com.topjohnwu.magisk.ui.home
 import android.content.Context
 import androidx.core.net.toUri
 import androidx.databinding.Bindable
-import androidx.lifecycle.viewModelScope
 import com.topjohnwu.magisk.BR
 import com.topjohnwu.magisk.BuildConfig
 import com.topjohnwu.magisk.R
@@ -23,16 +22,15 @@ import com.topjohnwu.magisk.ktx.await
 import com.topjohnwu.magisk.utils.Utils
 import com.topjohnwu.magisk.utils.asText
 import com.topjohnwu.superuser.Shell
-import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
-
-enum class MagiskState {
-    NOT_INSTALLED, UP_TO_DATE, OBSOLETE, LOADING
-}
 
 class HomeViewModel(
     private val svc: NetworkService
-) : BaseViewModel() {
+) : AsyncLoadViewModel() {
+
+    enum class State {
+        LOADING, INVALID, OUTDATED, UP_TO_DATE
+    }
 
     val magiskTitleBarrierIds =
         intArrayOf(R.id.home_magisk_icon, R.id.home_magisk_title, R.id.home_magisk_button)
@@ -43,16 +41,16 @@ class HomeViewModel(
     var isNoticeVisible = Config.safetyNotice
         set(value) = set(value, field, { field = it }, BR.noticeVisible)
 
-    val stateMagisk
+    val magiskState
         get() = when {
-            !Info.env.isActive -> MagiskState.NOT_INSTALLED
-            Info.env.versionCode < BuildConfig.VERSION_CODE -> MagiskState.OBSOLETE
-            else -> MagiskState.UP_TO_DATE
+            !Info.env.isActive -> State.INVALID
+            Info.env.versionCode < BuildConfig.VERSION_CODE -> State.OUTDATED
+            else -> State.UP_TO_DATE
         }
 
     @get:Bindable
-    var stateManager = MagiskState.LOADING
-        set(value) = set(value, field, { field = it }, BR.stateManager)
+    var appState = State.LOADING
+        set(value) = set(value, field, { field = it }, BR.appState)
 
     val magiskInstalledVersion
         get() = Info.env.run {
@@ -83,14 +81,12 @@ class HomeViewModel(
         private var checkedEnv = false
     }
 
-    override fun refresh() = viewModelScope.launch {
-        state = State.LOADING
+    override suspend fun doLoadWork() {
+        appState = State.LOADING
         Info.getRemote(svc)?.apply {
-            state = State.LOADED
-
-            stateManager = when {
-                BuildConfig.VERSION_CODE < magisk.versionCode -> MagiskState.OBSOLETE
-                else -> MagiskState.UP_TO_DATE
+            appState = when {
+                BuildConfig.VERSION_CODE < magisk.versionCode -> State.OUTDATED
+                else -> State.UP_TO_DATE
             }
 
             val isDebug = Config.updateChannel == Config.Value.DEBUG_CHANNEL
@@ -98,19 +94,12 @@ class HomeViewModel(
                 ("${magisk.version} (${magisk.versionCode}) (${stub.versionCode})" +
                     if (isDebug) " (D)" else "").asText()
         } ?: run {
-            state = State.LOADING_FAILED
             managerRemoteVersion = R.string.not_available.asText()
         }
         ensureEnv()
     }
 
-    val showTest = false
-
-    fun onTestPressed() = object : ViewEvent(), ActivityExecutor {
-        override fun invoke(activity: UIActivity<*>) {
-            /* Entry point to trigger test events within the app */
-        }
-    }.publish()
+    override fun onNetworkChanged(network: Boolean) = startLoading()
 
     fun onProgressUpdate(progress: Float, subject: Subject) {
         if (subject is App)
@@ -123,14 +112,14 @@ class HomeViewModel(
 
     fun onDeletePressed() = UninstallDialog().publish()
 
-    fun onManagerPressed() = when (state) {
-        State.LOADED -> withExternalRW {
+    fun onManagerPressed() = when (magiskState) {
+        State.LOADING -> SnackbarEvent(R.string.loading).publish()
+        State.INVALID -> SnackbarEvent(R.string.no_connection).publish()
+        else -> withExternalRW {
             withInstallPermission {
                 ManagerInstallDialog().publish()
             }
         }
-        State.LOADING -> SnackbarEvent(R.string.loading).publish()
-        else -> SnackbarEvent(R.string.no_connection).publish()
     }
 
     fun onMagiskPressed() = withExternalRW {
@@ -143,7 +132,7 @@ class HomeViewModel(
     }
 
     private suspend fun ensureEnv() {
-        if (MagiskState.NOT_INSTALLED == stateMagisk || checkedEnv) return
+        if (magiskState == State.INVALID || checkedEnv) return
         val cmd = "env_check ${Info.env.versionString} ${Info.env.versionCode}"
         if (!Shell.cmd(cmd).await().isSuccess) {
             EnvFixDialog(this).publish()
@@ -151,4 +140,10 @@ class HomeViewModel(
         checkedEnv = true
     }
 
+    val showTest = false
+    fun onTestPressed() = object : ViewEvent(), ActivityExecutor {
+        override fun invoke(activity: UIActivity<*>) {
+            /* Entry point to trigger test events within the app */
+        }
+    }.publish()
 }

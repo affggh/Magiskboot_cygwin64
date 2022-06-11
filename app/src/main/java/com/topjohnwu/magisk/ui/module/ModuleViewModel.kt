@@ -1,29 +1,24 @@
 package com.topjohnwu.magisk.ui.module
 
 import android.net.Uri
+import androidx.databinding.Bindable
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.viewModelScope
 import com.topjohnwu.magisk.BR
 import com.topjohnwu.magisk.R
-import com.topjohnwu.magisk.arch.BaseViewModel
+import com.topjohnwu.magisk.arch.AsyncLoadViewModel
 import com.topjohnwu.magisk.core.Info
 import com.topjohnwu.magisk.core.base.ContentResultCallback
 import com.topjohnwu.magisk.core.model.module.LocalModule
 import com.topjohnwu.magisk.core.model.module.OnlineModule
-import com.topjohnwu.magisk.databinding.MergeObservableList
-import com.topjohnwu.magisk.databinding.RvItem
-import com.topjohnwu.magisk.databinding.bindExtra
-import com.topjohnwu.magisk.databinding.diffListOf
+import com.topjohnwu.magisk.databinding.*
 import com.topjohnwu.magisk.events.GetContentEvent
 import com.topjohnwu.magisk.events.SnackbarEvent
 import com.topjohnwu.magisk.events.dialog.ModuleInstallDialog
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.parcelize.Parcelize
 
-class ModuleViewModel : BaseViewModel() {
+class ModuleViewModel : AsyncLoadViewModel() {
 
     val bottomBarBarrierIds = intArrayOf(R.id.module_update, R.id.module_remove)
 
@@ -36,6 +31,10 @@ class ModuleViewModel : BaseViewModel() {
 
     val data get() = uri
 
+    @get:Bindable
+    var loading = true
+        private set(value) = set(value, field, { field = it }, BR.loading)
+
     init {
         if (Info.env.isActive && LocalModule.loaded()) {
             items.insertItem(InstallModule)
@@ -43,14 +42,14 @@ class ModuleViewModel : BaseViewModel() {
         }
     }
 
-    override fun refresh(): Job {
-        return viewModelScope.launch {
-            state = State.LOADING
-            loadInstalled()
-            state = State.LOADED
-            loadUpdateInfo()
-        }
+    override suspend fun doLoadWork() {
+        loading = true
+        loadInstalled()
+        loading = false
+        loadUpdateInfo()
     }
+
+    override fun onNetworkChanged(network: Boolean) = startLoading()
 
     private suspend fun loadInstalled() {
         val installed = LocalModule.installed().map { LocalModuleRvItem(it) }

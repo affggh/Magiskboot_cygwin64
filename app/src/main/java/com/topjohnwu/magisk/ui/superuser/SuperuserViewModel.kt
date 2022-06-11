@@ -4,20 +4,18 @@ import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.content.pm.PackageManager.MATCH_UNINSTALLED_PACKAGES
 import android.os.Process
+import androidx.databinding.Bindable
 import androidx.databinding.ObservableArrayList
 import androidx.lifecycle.viewModelScope
 import com.topjohnwu.magisk.BR
 import com.topjohnwu.magisk.R
-import com.topjohnwu.magisk.arch.BaseViewModel
+import com.topjohnwu.magisk.arch.AsyncLoadViewModel
 import com.topjohnwu.magisk.core.data.magiskdb.PolicyDao
 import com.topjohnwu.magisk.core.di.AppContext
 import com.topjohnwu.magisk.core.model.su.SuPolicy
 import com.topjohnwu.magisk.core.utils.BiometricHelper
 import com.topjohnwu.magisk.core.utils.currentLocale
-import com.topjohnwu.magisk.databinding.AnyDiffRvItem
-import com.topjohnwu.magisk.databinding.MergeObservableList
-import com.topjohnwu.magisk.databinding.bindExtra
-import com.topjohnwu.magisk.databinding.diffListOf
+import com.topjohnwu.magisk.databinding.*
 import com.topjohnwu.magisk.events.SnackbarEvent
 import com.topjohnwu.magisk.events.dialog.BiometricEvent
 import com.topjohnwu.magisk.events.dialog.SuperuserRevokeDialog
@@ -31,7 +29,7 @@ import kotlinx.coroutines.withContext
 
 class SuperuserViewModel(
     private val db: PolicyDao
-) : BaseViewModel() {
+) : AsyncLoadViewModel() {
 
     private val itemNoData = TextItem(R.string.superuser_policy_none)
 
@@ -45,15 +43,17 @@ class SuperuserViewModel(
         it.put(BR.listener, this)
     }
 
-    // ---
+    @get:Bindable
+    var loading = true
+        private set(value) = set(value, field, { field = it }, BR.loading)
 
     @SuppressLint("InlinedApi")
-    override fun refresh() = viewModelScope.launch {
+    override suspend fun doLoadWork() {
         if (!Utils.showSuperUser()) {
-            state = State.LOADING_FAILED
-            return@launch
+            loading = false
+            return
         }
-        state = State.LOADING
+        loading = true
         val (policies, diff) = withContext(Dispatchers.IO) {
             db.deleteOutdated()
             db.delete(AppContext.applicationInfo.uid)
@@ -98,7 +98,7 @@ class SuperuserViewModel(
             itemsHelpers.clear()
         else if (itemsHelpers.isEmpty())
             itemsHelpers.add(itemNoData)
-        state = State.LOADED
+        loading = false
     }
 
     // ---

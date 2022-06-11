@@ -6,6 +6,7 @@ import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Bundle
 import android.view.*
+import androidx.core.view.isVisible
 import androidx.navigation.NavDeepLinkBuilder
 import com.topjohnwu.magisk.MainDirections
 import com.topjohnwu.magisk.R
@@ -34,8 +35,20 @@ class FlashFragment : BaseFragment<FragmentFlashMd2Binding>() {
         setHasOptionsMenu(true)
         activity?.setTitle(R.string.flash_screen_title)
 
-        viewModel.subtitle.observe(this) {
-            activity?.supportActionBar?.setSubtitle(it)
+        viewModel.state.observe(this) {
+            activity?.supportActionBar?.setSubtitle(
+                when (it) {
+                    FlashViewModel.State.FLASHING -> R.string.flashing
+                    FlashViewModel.State.SUCCESS -> R.string.done
+                    FlashViewModel.State.FAILED -> R.string.failure
+                }
+            )
+            if (it == FlashViewModel.State.SUCCESS && viewModel.showReboot) {
+                binding.restartBtn.apply {
+                    if (!this.isVisible) this.show()
+                    if (!this.isFocused) this.requestFocus()
+                }
+            }
         }
     }
 
@@ -66,7 +79,7 @@ class FlashFragment : BaseFragment<FragmentFlashMd2Binding>() {
     }
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
-        return when(event.keyCode) {
+        return when (event.keyCode) {
             KeyEvent.KEYCODE_VOLUME_UP,
             KeyEvent.KEYCODE_VOLUME_DOWN -> true
             else -> false
@@ -74,7 +87,8 @@ class FlashFragment : BaseFragment<FragmentFlashMd2Binding>() {
     }
 
     override fun onBackPressed(): Boolean {
-        if (viewModel.loading) return true
+        if (viewModel.flashing.value == true)
+            return true
         return super.onBackPressed()
     }
 

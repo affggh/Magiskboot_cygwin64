@@ -4,6 +4,7 @@ import android.view.MenuItem
 import androidx.databinding.Bindable
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Transformations
 import androidx.lifecycle.viewModelScope
 import com.topjohnwu.magisk.BR
 import com.topjohnwu.magisk.R
@@ -27,12 +28,17 @@ import kotlinx.coroutines.launch
 
 class FlashViewModel : BaseViewModel() {
 
+    enum class State {
+        FLASHING, SUCCESS, FAILED
+    }
+
+    private val _state = MutableLiveData(State.FLASHING)
+    val state: LiveData<State> get() = _state
+    val flashing = Transformations.map(state) { it == State.FLASHING }
+
     @get:Bindable
     var showReboot = Info.isRooted
         set(value) = set(value, field, { field = it }, BR.showReboot)
-
-    private val _subtitle = MutableLiveData(R.string.flashing)
-    val subtitle get() = _subtitle as LiveData<Int>
 
     val items = diffListOf<ConsoleItem>()
     lateinit var args: FlashFragmentArgs
@@ -83,11 +89,7 @@ class FlashViewModel : BaseViewModel() {
     }
 
     private fun onResult(success: Boolean) {
-        state = if (success) State.LOADED else State.LOADING_FAILED
-        when {
-            success -> _subtitle.postValue(R.string.done)
-            else -> _subtitle.postValue(R.string.failure)
-        }
+        _state.value = if (success) State.SUCCESS else State.FAILED
     }
 
     fun onMenuItemClicked(item: MenuItem): Boolean {
@@ -100,7 +102,8 @@ class FlashViewModel : BaseViewModel() {
     private fun savePressed() = withExternalRW {
         viewModelScope.launch(Dispatchers.IO) {
             val name = "magisk_install_log_%s.log".format(
-                System.currentTimeMillis().toTime(timeFormatStandard))
+                System.currentTimeMillis().toTime(timeFormatStandard)
+            )
             val file = MediaStoreUtils.getFile(name, true)
             file.uri.outputStream().bufferedWriter().use { writer ->
                 synchronized(logItems) {

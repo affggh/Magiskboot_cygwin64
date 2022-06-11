@@ -2,23 +2,22 @@ package com.topjohnwu.magisk.ui.deny
 
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager.MATCH_UNINSTALLED_PACKAGES
-import androidx.lifecycle.viewModelScope
+import androidx.databinding.Bindable
 import com.topjohnwu.magisk.BR
-import com.topjohnwu.magisk.arch.BaseViewModel
+import com.topjohnwu.magisk.arch.AsyncLoadViewModel
 import com.topjohnwu.magisk.core.di.AppContext
 import com.topjohnwu.magisk.databinding.bindExtra
 import com.topjohnwu.magisk.databinding.filterableListOf
+import com.topjohnwu.magisk.databinding.set
 import com.topjohnwu.magisk.ktx.concurrentMap
-import com.topjohnwu.magisk.utils.Utils
 import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.toCollection
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class DenyListViewModel : BaseViewModel() {
+class DenyListViewModel : AsyncLoadViewModel() {
 
     var isShowSystem = false
         set(value) {
@@ -43,13 +42,13 @@ class DenyListViewModel : BaseViewModel() {
         it.put(BR.viewModel, this)
     }
 
+    @get:Bindable
+    var loading = true
+        private set(value) = set(value, field, { field = it }, BR.loading)
+
     @SuppressLint("InlinedApi")
-    override fun refresh() = viewModelScope.launch {
-        if (!Utils.showSuperUser()) {
-            state = State.LOADING_FAILED
-            return@launch
-        }
-        state = State.LOADING
+    override suspend fun doLoadWork() {
+        loading = true
         val (apps, diff) = withContext(Dispatchers.Default) {
             val pm = AppContext.packageManager
             val denyList = Shell.cmd("magisk --denylist ls").exec().out
@@ -84,6 +83,6 @@ class DenyListViewModel : BaseViewModel() {
 
             (it.isChecked || (filterSystem() && filterOS())) && filterQuery()
         }
-        state = State.LOADED
+        loading = false
     }
 }
