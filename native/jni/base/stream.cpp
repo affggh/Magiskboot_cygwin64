@@ -1,6 +1,8 @@
 #include <unistd.h>
 #include <cstddef>
-
+#ifdef __CYGWIN__ // Add by affggh
+#include <stdio.h>
+#endif // __CYGWIN__
 #include <base.hpp>
 #include <stream.hpp>
 
@@ -28,13 +30,13 @@ static int strm_close(void *v) {
     delete strm;
     return 0;
 }
-
+#ifndef __CYGWIN__ // Add by affggh
 sFILE make_stream_fp(stream_ptr &&strm) {
     auto fp = make_file(funopen(strm.release(), strm_read, strm_write, strm_seek, strm_close));
     setbuf(fp.get(), nullptr);
     return fp;
 }
-
+#endif // __CYGWIN__
 ssize_t stream::read(void *buf, size_t len)  {
     LOGE("This stream does not implement read\n");
     return -1;

@@ -5,6 +5,12 @@
 #include <poll.h>
 #include <fcntl.h>
 
+// Add by affggh
+// Cygwin compiler cannot auto detect socklen_t
+#ifdef __CYGWIN__
+#include <cygwin/socket.h>
+#endif // __CYGWIN__
+
 FILE *xfopen(const char *pathname, const char *mode);
 FILE *xfdopen(int fd, const char *mode);
 int xopen(const char *pathname, int flags);

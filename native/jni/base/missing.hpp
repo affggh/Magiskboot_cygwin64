@@ -1,11 +1,19 @@
 #pragma once
 
+#ifndef __CYGWIN__ // Add by affggh
 #include <sys/syscall.h>
 #include <linux/fcntl.h>
+#else
+#include <sys/fcntl.h>
+#endif // __CYGWIN__
+
 #include <unistd.h>
 #include <cerrno>
 #include <cstdio>
 
+// Add by affggh
+// Cygwin compiled magiskboot do not need these functions
+#if !defined(__CYGWIN__)
 static inline int sigtimedwait(const sigset_t* set, siginfo_t* info, const timespec* timeout) {
     union {
         sigset_t set;
@@ -24,3 +32,4 @@ static inline int fexecve(int fd, char* const* argv, char* const* envp) {
     }
     return -1;
 }
+#endif // __CYGWIN__

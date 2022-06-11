@@ -4,6 +4,10 @@
 #include "magiskboot.hpp"
 #include "compress.hpp"
 
+#ifdef __CYGWIN__ // Add by affggh
+#define MODIFIED_VER "Magiskboot on cygwin64 modified by affggh"
+#endif // __CYGWIN__
+
 using namespace std;
 
 static void print_formats() {
@@ -116,7 +120,9 @@ Supported actions:
 int main(int argc, char *argv[]) {
     cmdline_logging();
     umask(0);
-
+    #ifdef __CYGWIN__ // Add by affggh
+    fprintf(stderr, "%s\n", MODIFIED_VER);
+    #endif // __CYGWIN__
     if (argc < 2)
         usage(argv[0]);
 

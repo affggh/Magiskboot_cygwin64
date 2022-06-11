@@ -1,5 +1,11 @@
+#ifndef __CYGWIN__ // Add by affggh
 #include <sys/sendfile.h>
 #include <linux/fs.h>
+#else
+#include <cygwin/fs.h>
+#include <sys/ioctl.h>
+#endif // __CYGWIN__
+
 #include <fcntl.h>
 #include <unistd.h>
 #include <libgen.h>

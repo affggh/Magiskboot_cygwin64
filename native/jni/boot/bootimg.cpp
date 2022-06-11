@@ -12,6 +12,12 @@
 
 using namespace std;
 
+#ifdef __CYGWIN__
+#define off64_t off_t
+#define lseek64 lseek
+#define ftruncate64 ftruncate
+#endif
+
 uint32_t dyn_img_hdr::j32 = 0;
 uint64_t dyn_img_hdr::j64 = 0;
 

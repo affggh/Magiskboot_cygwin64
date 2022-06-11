@@ -7,7 +7,9 @@
 #include <mntent.h>
 #include <unistd.h>
 #include <fcntl.h>
+#ifndef __CYGWIN__ // Add by affggh
 #include <sys/syscall.h>
+#endif // __CYGWIN__
 #include <sys/stat.h>
 
 extern "C" {
@@ -67,7 +69,7 @@ int endmntent(FILE *fp) {
 }
 
 // Missing system call wrappers
-
+#ifndef __CYGWIN__ // Add by affggh
 int setns(int fd, int nstype) {
     return syscall(__NR_setns, fd, nstype);
 }
@@ -104,7 +106,7 @@ int inotify_init1(int flags) {
 int faccessat(int dirfd, const char *pathname, int mode, int flags) {
     return syscall(__NR_faccessat, dirfd, pathname, mode, flags);
 }
-
+#endif // __CYGWIN__
 int mkfifo(const char *path, mode_t mode) {
     return mknod(path, (mode & ~S_IFMT) | S_IFIFO, 0);
 }

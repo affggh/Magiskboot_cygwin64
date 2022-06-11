@@ -1,10 +1,14 @@
 #include <unistd.h>
+#ifndef __CYGWIN__ // Add by affggh
 #include <sys/syscall.h>
+#endif // __CYGWIN__
 #include <sys/xattr.h>
 
 #include <base.hpp>
 #include <selinux.hpp>
+#ifndef __CYGWIN__ // Add by affggh
 #include <flags.h>
+#endif
 
 using namespace std;
 
@@ -41,7 +45,7 @@ static int __setcon(const char *ctx) {
     close(fd);
     return rc != len;
 }
-
+#ifndef __CYGWIN__ // Add by affggh
 static int __getfilecon(const char *path, char **ctx) {
     char buf[1024];
     int rc = syscall(__NR_getxattr, path, XATTR_NAME_SELINUX, buf, sizeof(buf) - 1);
@@ -77,7 +81,7 @@ static int __lsetfilecon(const char *path, const char *ctx) {
 static int __fsetfilecon(int fd, const char *ctx) {
     return syscall(__NR_fsetxattr, fd, XATTR_NAME_SELINUX, ctx, strlen(ctx) + 1, 0);
 }
-
+#endif // __CYGWIN__
 // Function pointers
 
 void (*freecon)(char *) = __freecon;
@@ -120,10 +124,12 @@ void enable_selinux() {
     se_state = true;
 #endif
     setcon = __setcon;
+#ifndef __CYGWIN__ //  Add by affggh
     getfilecon = __getfilecon;
     lgetfilecon = __lgetfilecon;
     fgetfilecon = __fgetfilecon;
     setfilecon = __setfilecon;
     lsetfilecon = __lsetfilecon;
     fsetfilecon = __fsetfilecon;
+#endif // __CYGWIN__
 }

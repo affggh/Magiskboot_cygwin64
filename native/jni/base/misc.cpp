@@ -1,11 +1,15 @@
 #include <sys/types.h>
 #include <sys/wait.h>
+#ifndef __CYGWIN__ // Add by affggh
 #include <sys/prctl.h>
+#endif // __CYGWIN__
 #include <sys/sysmacros.h>
 #include <fcntl.h>
 #include <pwd.h>
 #include <unistd.h>
+#ifndef __CYGWIN__ // Add by affggh
 #include <syscall.h>
+#endif // __CYGWIN__
 #include <random>
 #include <string>
 
@@ -23,6 +27,7 @@ int fork_dont_care() {
     return 0;
 }
 
+#ifndef __CYGWIN__ // Add by affggh
 int fork_no_orphan() {
     int pid = xfork();
     if (pid)
@@ -32,6 +37,7 @@ int fork_no_orphan() {
         exit(1);
     return 0;
 }
+#endif // __CYGWIN
 
 int gen_rand_str(char *buf, int len, bool varlen) {
     constexpr char ALPHANUM[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -124,11 +130,13 @@ void init_argv0(int argc, char **argv) {
     name_len = (argv[argc - 1] - argv[0]) + strlen(argv[argc - 1]) + 1;
 }
 
+#ifndef __CYGWIN__ // Add by affggh
 void set_nice_name(const char *name) {
     memset(argv0, 0, name_len);
     strlcpy(argv0, name, name_len);
     prctl(PR_SET_NAME, name);
 }
+#endif // __CYGWIN__
 
 /*
  * Bionic's atoi runs through strtol().

@@ -6,9 +6,11 @@
 #include <sys/stat.h>
 #include <sys/mount.h>
 #include <sys/mman.h>
+#ifndef __CYGWIN__ // Add by affggh
 #include <sys/sendfile.h>
 #include <sys/ptrace.h>
 #include <sys/inotify.h>
+#endif // __CYGWIN__
 
 #include <base.hpp>
 
@@ -118,7 +120,7 @@ int xpipe2(int pipefd[2], int flags) {
     }
     return ret;
 }
-
+#ifndef __CYGWIN__ // Add by affggh
 int xsetns(int fd, int nstype) {
     int ret = setns(fd, nstype);
     if (ret < 0) {
@@ -134,7 +136,7 @@ int xunshare(int flags) {
     }
     return ret;
 }
-
+#endif // __CYGWIN__
 DIR *xopendir(const char *name) {
     DIR *d = opendir(name);
     if (d == nullptr) {
@@ -388,7 +390,7 @@ int xlinkat(int olddirfd, const char *oldpath, int newdirfd, const char *newpath
     }
     return ret;
 }
-
+#ifndef __CYGWIN__ // Add by affggh
 int xmount(const char *source, const char *target,
     const char *filesystemtype, unsigned long mountflags,
     const void *data) {
@@ -414,7 +416,7 @@ int xumount2(const char *target, int flags) {
     }
     return ret;
 }
-
+#endif // __CYGWIN__
 int xrename(const char *oldpath, const char *newpath) {
     int ret = rename(oldpath, newpath);
     if (ret < 0) {
@@ -458,7 +460,21 @@ void *xmmap(void *addr, size_t length, int prot, int flags,
 }
 
 ssize_t xsendfile(int out_fd, int in_fd, off_t *offset, size_t count) {
+    #ifndef __CYGWIN__ // Add by affggh
     ssize_t ret = sendfile(out_fd, in_fd, offset, count);
+    #else // Source from thka2016@github.com
+    ssize_t ret = 0;
+    char buf[4096];
+    int len = 4096;
+    int size = count / len;
+    for(int i=0; i < size; i++) {
+        read(in_fd, buf, len);
+        write(out_fd, buf, len);
+    }
+    size = count % len;
+    read(in_fd, buf, size);
+    write(out_fd, buf, size);
+    #endif // __CYGWIN__
     if (ret < 0) {
         PLOGE("sendfile");
     }
@@ -480,7 +496,7 @@ int xpoll(struct pollfd *fds, nfds_t nfds, int timeout) {
     }
     return ret;
 }
-
+#ifndef __CYGWIN__ // Add by affggh
 int xinotify_init1(int flags) {
     int ret = inotify_init1(flags);
     if (ret < 0) {
@@ -488,7 +504,7 @@ int xinotify_init1(int flags) {
     }
     return ret;
 }
-
+#endif // __CYGWIN__
 char *xrealpath(const char *path, char *resolved_path) {
     char buf[PATH_MAX];
     char *ret = realpath(path, buf);
@@ -507,10 +523,11 @@ int xmknod(const char *pathname, mode_t mode, dev_t dev) {
     }
     return ret;
 }
-
+#ifndef __CYGWIN__ // Add by affggh
 long xptrace(int request, pid_t pid, void *addr, void *data) {
     long ret = ptrace(request, pid, addr, data);
     if (ret < 0)
         PLOGE("ptrace %d", pid);
     return ret;
 }
+#endif // __CYGWIN__

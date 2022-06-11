@@ -1,7 +1,9 @@
 #include <cstdio>
 #include <cstdlib>
 
+#ifndef __CYGWIN__ // Add by affggh
 #include <flags.h>
+#endif // __CYGWIN__
 
 #include "logging.hpp"
 
